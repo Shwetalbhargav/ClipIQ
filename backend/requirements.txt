@@ -3,3 +3,6 @@ uvicorn[standard]==0.34.0
 pydantic-settings==2.7.1
 pytest==8.3.4
 httpx==0.28.1
+youtube-transcript-api==0.6.3
+yt-dlp==2025.1.26
+openai-whisper==20240930
