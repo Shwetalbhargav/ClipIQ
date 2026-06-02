@@ -8,7 +8,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 from app.modules.video_ingestion.schema import SupportedPlatform
-from app.modules.video_ingestion.utils import InvalidVideoUrlError, UnsupportedVideoUrlError, detect_platform
+from app.modules.video_ingestion.utils import InvalidVideoUrlError, UnsupportedVideoUrlError, canonicalize_url, detect_platform
 
 
 ComparisonStatus = Literal["ready", "partial", "failed"]
@@ -28,6 +28,7 @@ class ComparisonAnalyzeRequest(BaseModel):
         try:
             if detect_platform(str(value)) != SupportedPlatform.YOUTUBE:
                 raise ValueError("youtube_url must be a YouTube video URL")
+            canonicalize_url(str(value))
         except (UnsupportedVideoUrlError, InvalidVideoUrlError) as exc:
             raise ValueError("youtube_url must be a supported YouTube video URL") from exc
         return value
@@ -38,6 +39,7 @@ class ComparisonAnalyzeRequest(BaseModel):
         try:
             if detect_platform(str(value)) != SupportedPlatform.INSTAGRAM:
                 raise ValueError("instagram_url must be an Instagram Reel URL")
+            canonicalize_url(str(value))
         except (UnsupportedVideoUrlError, InvalidVideoUrlError) as exc:
             raise ValueError("instagram_url must be a supported Instagram Reel URL") from exc
         return value
@@ -85,4 +87,3 @@ class ComparisonAnalyzeResponse(BaseModel):
 
 class ComparisonGetResponse(ComparisonAnalyzeResponse):
     """Response from GET /api/comparisons/{comparison_id}."""
-

@@ -16,7 +16,7 @@ from app.modules.chat.schema import ChatRequest, ChatRole, RetrievedChunk as Cha
 from app.modules.chat.service import ChatService
 from app.modules.engagement.schema import ENGAGEMENT_FORMULA, VideoEngagementInput
 from app.modules.engagement.service import compare_videos
-from app.modules.graph.nodes import GraphDependencies
+from app.modules.graph.nodes import GraphDependencies, create_build_context_node, create_compare_node
 from app.modules.graph.workflow import run_graph
 from app.modules.memory.schema import MemoryMessage, MemoryMessageCreate, MessageRole
 from app.modules.memory.service import MongoMemoryRepository
@@ -244,10 +244,15 @@ class MongoComparisonRepository:
         if data is None:
             return {}
         metrics_by_video = {item["video_id"]: item for item in data["metrics"]}
+        chunks_by_video = {
+            label: [chunk for chunk in data["chunks"] if chunk.get("video_label") == label]
+            for label in ("A", "B")
+        }
         output: dict[str, dict[str, Any]] = {}
         for video in data["videos"]:
             label = video["video_label"]
             metric = metrics_by_video.get(video["_id"], {})
+            chunks = chunks_by_video.get(label, [])
             output[label] = {
                 "video_id": label,
                 "platform": video.get("platform"),
@@ -263,7 +268,7 @@ class MongoComparisonRepository:
                 "hashtags": video.get("hashtags") or [],
                 "engagement_rate": metric.get("engagement_rate"),
                 "engagement_formula": metric.get("engagement_formula"),
-                "transcript_status": "available",
+                "transcript_status": "ready" if chunks else "unavailable",
             }
         return output
 
@@ -411,12 +416,107 @@ class ProductionGraphRunner:
 
 
 class ChatServiceStreamer:
-    """Streaming adapter that emits final chat output as SSE-friendly items."""
+    """Streaming adapter that emits true model token deltas for chat."""
 
-    def __init__(self, chat_service: ChatService) -> None:
+    def __init__(
+        self,
+        chat_service: ChatService,
+        *,
+        graph_deps: GraphDependencies | None = None,
+        api_key: str | None = None,
+        model: str = "gpt-4o-mini",
+    ) -> None:
         self.chat_service = chat_service
+        self.graph_deps = graph_deps
+        self.openai = AsyncOpenAI(api_key=api_key) if graph_deps is not None else None
+        self.model = model
 
     async def stream_chat(self, *, comparison_id: str, message: str, response_id: str, user_id: str | None = None):
+        if self.graph_deps is None or self.openai is None:
+            # Test/development fallback only. Production container supplies graph_deps
+            # and OpenAI credentials so the frontend receives true model deltas.
+            async for item in self._fallback_stream(comparison_id=comparison_id, message=message):
+                yield item
+            return
+
+        memory = await self.graph_deps.memory_repo.get_recent_messages(comparison_id=comparison_id, limit=6)
+        retrieved_a = await self.graph_deps.retriever.retrieve(
+            comparison_id=comparison_id,
+            video_id="A",
+            query=message,
+            top_k=self.graph_deps.top_k_per_video,
+        )
+        retrieved_b = await self.graph_deps.retriever.retrieve(
+            comparison_id=comparison_id,
+            video_id="B",
+            query=message,
+            top_k=self.graph_deps.top_k_per_video,
+        )
+        metadata = await self.graph_deps.metadata_repo.get_video_metadata(comparison_id=comparison_id)
+        state: dict[str, Any] = {
+            "comparison_id": comparison_id,
+            "question": message,
+            "memory": memory,
+            "retrieved_a": retrieved_a,
+            "retrieved_b": retrieved_b,
+            "metadata": metadata,
+        }
+        state.update(await create_compare_node(self.graph_deps)(state))
+        state.update(await create_build_context_node(self.graph_deps)(state))
+
+        await self.graph_deps.memory_repo.append_message(
+            comparison_id=comparison_id,
+            role="user",
+            content=message,
+        )
+
+        memory_text = "\n".join(f"{item['role']}: {item['content']}" for item in memory[-6:])
+        stream = await self.openai.chat.completions.create(
+            model=self.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are ClipIQ, a source-grounded social video analyst. "
+                        "Use only the provided metadata and transcript chunks. "
+                        "Cite transcript claims with labels like [Video A Chunk 0]. "
+                        "Say when evidence is missing."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"MEMORY\n{memory_text}\n\n"
+                        f"CONTEXT\n{state.get('context', '')}\n\n"
+                        f"QUESTION\n{message}"
+                    ),
+                },
+            ],
+            temperature=0.2,
+            stream=True,
+        )
+
+        answer_parts: list[str] = []
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            delta = chunk.choices[0].delta.content or ""
+            if not delta:
+                continue
+            answer_parts.append(delta)
+            yield delta
+
+        answer = "".join(answer_parts).strip()
+        await self.graph_deps.memory_repo.append_message(
+            comparison_id=comparison_id,
+            role="assistant",
+            content=answer or "I could not generate an answer from the available evidence.",
+        )
+
+        for citation in state.get("citations", []):
+            yield {"type": "citation", "data": citation}
+
+    async def _fallback_stream(self, *, comparison_id: str, message: str):
         response = await self.chat_service.chat(ChatRequest(session_id=comparison_id, message=message))
         for token in response.answer.split(" "):
             yield token + " "
@@ -548,7 +648,7 @@ class ComparisonAnalysisService:
             transcript_results={},
             indexed_counts=indexed_counts,
             video_items=video_items,
-            engagement={},
+            engagement=self._stored_engagement_payload(data),
         )
         return ComparisonGetResponse(**response.model_dump(mode="json"))
 
@@ -658,7 +758,7 @@ class ComparisonAnalysisService:
             transcript_status={
                 label: result.status.value
                 for label, result in transcript_results.items()
-            },
+            } or self._stored_transcript_status(data),
             indexing_status={
                 label: "indexed" if count else "not_indexed"
                 for label, count in indexed_counts.items()
@@ -707,6 +807,40 @@ class ComparisonAnalysisService:
         # when full Pydantic metadata is unavailable. This method is intentionally
         # left minimal because the POST response is the primary demo contract.
         return {}
+
+    @staticmethod
+    def _stored_transcript_status(data: dict[str, Any] | None) -> dict[str, str]:
+        if data is None:
+            return {}
+        return {
+            label: "ready" if any(chunk.get("video_label") == label for chunk in data.get("chunks", [])) else "unavailable"
+            for label in ("A", "B")
+        }
+
+    @staticmethod
+    def _stored_engagement_payload(data: dict[str, Any]) -> dict[str, Any]:
+        videos_by_label = {video.get("video_label"): video for video in data.get("videos", [])}
+        metrics_by_video = {metric.get("video_id"): metric for metric in data.get("metrics", [])}
+        if "A" not in videos_by_label or "B" not in videos_by_label:
+            return {}
+
+        def input_for(label: str) -> VideoEngagementInput:
+            video = videos_by_label[label]
+            metric = metrics_by_video.get(video.get("_id"), {})
+            return VideoEngagementInput(
+                video_id=label,
+                label=label,  # type: ignore[arg-type]
+                platform=video.get("platform") or "unknown",
+                views=metric.get("views"),
+                likes=metric.get("likes"),
+                comments=metric.get("comments"),
+                creator=video.get("creator"),
+                title=video.get("title"),
+                follower_count=video.get("creator_followers"),
+            )
+
+        comparison = compare_videos(input_for("A"), input_for("B"))
+        return jsonable_dataclass(comparison.as_dict())
 
     @staticmethod
     def _stored_summary(label: str, data: dict[str, Any] | None, indexed_count: int) -> VideoSummary | None:

@@ -149,6 +149,9 @@ def test_url_validation_rejects_unsupported_and_malformed_urls() -> None:
     with pytest.raises(InvalidVideoUrlError):
         canonicalize_url("https://www.instagram.com/explore/tags/creator/")
 
+    with pytest.raises(InvalidVideoUrlError):
+        canonicalize_url("https://www.instagram.com/p/CxYz123abcd/")
+
 
 def test_metadata_helpers_are_deterministic_and_safe() -> None:
     """Utility coercion should avoid fabricating metrics from bad extractor values."""

@@ -217,6 +217,10 @@ async def test_comparison_service_runs_end_to_end_with_fakes() -> None:
     assert response.video_b.platform == "instagram"
     assert response.video_a.engagement_rate == 10.0
     assert response.video_b.engagement_rate == 4.0
+    fetched = await service.get(response.comparison_id)
+    assert fetched.engagement["video_a"]["engagement_rate"] == 10.0
+    assert fetched.engagement["video_b"]["engagement_rate"] == 4.0
+    assert fetched.transcript_status == {"A": "ready", "B": "ready"}
     assert ingestion.called is True
     assert [call.video_id for call in transcript.calls] == ["A", "B"]
     assert len(vector.calls) == 2

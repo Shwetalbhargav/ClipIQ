@@ -91,11 +91,25 @@ The endpoint emits Server-Sent Events:
 - `done`
 - `error`
 
+In production wiring, chat streaming uses OpenAI `stream=True` and emits model
+token deltas as they arrive. It does not wait for a full non-streamed chat answer
+and split it afterward.
+
 ## Tests
 
 ```powershell
 $env:PYTHONPATH=(Get-Location).Path
 python -m pytest -q
+```
+
+Optional live smoke test against a running backend:
+
+```powershell
+$env:CLIPIQ_LIVE_SMOKE="1"
+$env:CLIPIQ_API_BASE="http://localhost:8000"
+$env:CLIPIQ_YOUTUBE_URL="https://www.youtube.com/watch?v=..."
+$env:CLIPIQ_INSTAGRAM_REEL_URL="https://www.instagram.com/reel/.../"
+python -m pytest tests/test_live_smoke.py -q
 ```
 
 ## Scaling And Cost Notes

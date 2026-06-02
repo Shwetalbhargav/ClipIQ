@@ -63,15 +63,14 @@ async def build_app_container() -> AppContainer:
     retriever = ProductionRetriever(vector_service)
     response_generator = OpenAIResponseGenerator(api_key=settings.openai_api_key or "", model=settings.openai_chat_model)
 
-    graph_runner = ProductionGraphRunner(
-        GraphDependencies(
-            retriever=retriever,
-            metadata_repo=comparison_repository,
-            memory_repo=memory_store,
-            response_generator=response_generator,
-            top_k_per_video=4,
-        )
+    graph_deps = GraphDependencies(
+        retriever=retriever,
+        metadata_repo=comparison_repository,
+        memory_repo=memory_store,
+        response_generator=response_generator,
+        top_k_per_video=4,
     )
+    graph_runner = ProductionGraphRunner(graph_deps)
 
     chat_service = ChatService(
         memory_store=memory_store,
@@ -80,7 +79,15 @@ async def build_app_container() -> AppContainer:
         graph_runner=graph_runner,
         config=ChatServiceConfig(model_name=settings.openai_chat_model),
     )
-    streaming_service = StreamingService(ChatServiceStreamer(chat_service), model_name=settings.openai_chat_model)
+    streaming_service = StreamingService(
+        ChatServiceStreamer(
+            chat_service,
+            graph_deps=graph_deps,
+            api_key=settings.openai_api_key or "",
+            model=settings.openai_chat_model,
+        ),
+        model_name=settings.openai_chat_model,
+    )
     analysis_service = ComparisonAnalysisService(
         repository=comparison_repository,
         ingestion_service=VideoIngestionService(),

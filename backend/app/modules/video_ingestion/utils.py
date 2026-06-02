@@ -18,7 +18,7 @@ YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", 
 INSTAGRAM_HOSTS = {"instagram.com", "www.instagram.com", "m.instagram.com"}
 
 _HASHTAG_RE = re.compile(r"(?<!\w)#([\w]+)", flags=re.UNICODE)
-_INSTAGRAM_REEL_RE = re.compile(r"^/(?:reel|reels|p)/(?P<shortcode>[A-Za-z0-9_-]+)/?")
+_INSTAGRAM_REEL_RE = re.compile(r"^/(?:reel|reels)/(?P<shortcode>[A-Za-z0-9_-]+)/?")
 _YOUTUBE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{6,}$")
 
 
@@ -69,12 +69,12 @@ def extract_youtube_video_id(url: str) -> str:
 
 
 def extract_instagram_shortcode(url: str) -> str:
-    """Extract an Instagram Reel/Post shortcode from an Instagram URL."""
+    """Extract an Instagram Reel shortcode from an Instagram URL."""
 
     parsed = urlparse(url)
     match = _INSTAGRAM_REEL_RE.match(parsed.path)
     if not match:
-        raise InvalidVideoUrlError("Instagram URLs must point to a Reel or post shortcode.")
+        raise InvalidVideoUrlError("Instagram URLs must point to a Reel shortcode.")
     return match.group("shortcode")
 
 

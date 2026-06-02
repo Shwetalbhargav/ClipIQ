@@ -47,3 +47,15 @@ def test_request_with_tiktok_fails() -> None:
         },
     )
     assert response.status_code == 422
+
+
+def test_instagram_post_url_fails_because_reel_is_required() -> None:
+    client = build_client()
+    response = client.post(
+        "/api/comparisons",
+        json={
+            "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "instagram_url": "https://www.instagram.com/p/CxYz123abcd/",
+        },
+    )
+    assert response.status_code == 422
