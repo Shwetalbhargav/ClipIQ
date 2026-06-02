@@ -7,15 +7,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - mongodb
       - qdrant
-
-  mongodb:
-    image: mongo:7
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
 
   qdrant:
     image: qdrant/qdrant:v1.12.5
@@ -25,5 +17,4 @@ services:
       - qdrant_data:/qdrant/storage
 
 volumes:
-  mongodb_data:
   qdrant_data:
