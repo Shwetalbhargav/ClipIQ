@@ -84,7 +84,16 @@ COLLECTION_SCHEMAS = {
             "end_seconds": {"bsonType": ["double", "int", "long", "null"]},
             "text": {"bsonType": "string"},
             "source_type": {
-                "enum": ["manual_caption", "auto_caption", "whisper", "metadata_only", "unknown"]
+                "enum": [
+                    "manual_caption",
+                    "auto_caption",
+                    "manual_captions",
+                    "auto_captions",
+                    "yt_dlp_captions",
+                    "whisper",
+                    "metadata_only",
+                    "unknown",
+                ]
             },
             "created_at": {"bsonType": "date"},
         },

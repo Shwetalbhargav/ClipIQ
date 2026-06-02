@@ -285,7 +285,7 @@ def test_fastapi_route_uses_service_dependency_and_returns_schema_json() -> None
 
 
 def test_fastapi_route_returns_422_when_service_status_failed() -> None:
-    """A fully failed analysis should become a client-visible 422 error."""
+    """The legacy metadata endpoint should now require exactly two URLs."""
 
     app = FastAPI()
     app.include_router(router)
@@ -295,4 +295,4 @@ def test_fastapi_route_returns_422_when_service_status_failed() -> None:
     response = client.post("/videos/analyze", json={"urls": ["https://example.com/video/123"]})
 
     assert response.status_code == 422
-    assert response.json()["detail"][0]["code"] == "VIDEO_URL_INVALID"
+    assert response.json()["detail"][0]["type"] == "too_short"

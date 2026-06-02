@@ -52,9 +52,9 @@ class VideoAnalyzeRequest(BaseModel):
 
     urls: list[AnyHttpUrl] = Field(
         ...,
-        min_length=1,
+        min_length=2,
         max_length=2,
-        description="One or two video URLs. ClipIQ supports YouTube videos and Instagram Reels.",
+        description="Exactly two video URLs. ClipIQ supports one YouTube video and one Instagram Reel.",
         examples=[
             [
                 "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -66,11 +66,16 @@ class VideoAnalyzeRequest(BaseModel):
     @field_validator("urls")
     @classmethod
     def validate_unique_urls(cls, urls: list[AnyHttpUrl]) -> list[AnyHttpUrl]:
-        """Reject duplicate raw URLs before more expensive extraction starts."""
+        """Reject duplicate raw URLs and require one YouTube plus one Instagram URL."""
 
         normalized = {str(url).rstrip("/") for url in urls}
         if len(normalized) != len(urls):
             raise ValueError("Duplicate URLs are not allowed in a single analysis request.")
+        from .utils import detect_platform
+
+        platforms = [detect_platform(str(url)) for url in urls]
+        if sorted(platform.value for platform in platforms) != ["instagram", "youtube"]:
+            raise ValueError("Exactly one YouTube URL and one Instagram Reel URL are required.")
         return urls
 
 

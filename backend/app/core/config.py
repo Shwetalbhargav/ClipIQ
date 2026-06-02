@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     qdrant_api_key: str | None = None
     qdrant_collection: str = "video_transcript_chunks"
     embedding_dimension: int = 1536
+    openai_api_key: str | None = None
+    openai_embedding_model: str = "text-embedding-3-small"
+    openai_chat_model: str = "gpt-4o-mini"
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -28,5 +31,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
-    print(f"[Config] MongoDB URI loaded: {settings.mongodb_uri[:35]}...")
     return settings

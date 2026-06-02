@@ -6,7 +6,7 @@ used from extraction workers, FastAPI handlers, LangGraph context builders, or t
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any, Literal, Optional
 
 VideoLabel = Literal["A", "B"]
@@ -95,8 +95,8 @@ class EngagementComparison:
         """Return a JSON-friendly structure without requiring a framework model."""
 
         return {
-            "video_a": self.video_a.__dict__,
-            "video_b": self.video_b.__dict__,
-            "delta": self.delta.__dict__,
+            "video_a": asdict(self.video_a),
+            "video_b": asdict(self.video_b),
+            "delta": asdict(self.delta),
             "summary": self.summary,
         }

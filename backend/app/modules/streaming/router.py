@@ -49,11 +49,14 @@ def set_streaming_service(service: StreamingService) -> None:
 
 
 async def get_streaming_service(request: Request) -> StreamingService:
-    """Resolve the streaming service from app state or module-level fallback."""
+    """Resolve the streaming service from app state."""
 
-    service = getattr(request.app.state, "streaming_service", None) or _streaming_service
+    service = getattr(request.app.state, "streaming_service", None)
     if service is None:
-        raise MissingStreamingServiceError("StreamingService has not been configured")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="StreamingService has not been configured",
+        )
     return service
 
 
