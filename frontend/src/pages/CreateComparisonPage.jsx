@@ -53,7 +53,7 @@ function CreateComparisonPage() {
 
           <form className="space-y-5 p-4 sm:p-6" onSubmit={handleSubmit}>
             <label className="block" htmlFor="youtube-url">
-              <span className="text-sm font-semibold text-on-surface">Video A · YouTube video URL</span>
+              <span className="text-sm font-semibold text-on-surface">Video A - YouTube video URL</span>
               <span className="mt-2 flex items-center gap-3 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-3 focus-within:ring-2 focus-within:ring-primary/70">
                 <PlaySquare className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
                 <input
@@ -71,7 +71,7 @@ function CreateComparisonPage() {
             </label>
 
             <label className="block" htmlFor="instagram-url">
-              <span className="text-sm font-semibold text-on-surface">Video B · Instagram Reel URL</span>
+              <span className="text-sm font-semibold text-on-surface">Video B - Instagram Reel URL</span>
               <span className="mt-2 flex items-center gap-3 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-3 focus-within:ring-2 focus-within:ring-secondary/70">
                 <Clapperboard className="h-5 w-5 shrink-0 text-secondary" aria-hidden="true" />
                 <input

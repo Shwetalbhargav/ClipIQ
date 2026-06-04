@@ -1,10 +1,11 @@
-import { History, Home, Moon, Sun } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { History, Home } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { APP_NAME, ROUTES } from '../../constants/app.js'
 import { useHealth } from '../../hooks/useHealth.js'
+import { useTheme } from '../../hooks/useTheme.js'
 import Logo from '../ui/Logo.jsx'
 import StatusBadge from '../ui/StatusBadge.jsx'
+import ThemeToggle from '../ui/ThemeToggle.jsx'
 
 const navItems = [
   { to: ROUTES.create, label: 'Create', icon: Home },
@@ -22,12 +23,7 @@ function navClass({ isActive }) {
 
 function AppShell({ children }) {
   const health = useHealth()
-  const [theme, setTheme] = useState(() => localStorage.getItem('clipiq.theme') || 'dark')
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-    localStorage.setItem('clipiq.theme', theme)
-  }, [theme])
+  const { isDark, toggleTheme } = useTheme()
 
   const healthLabel =
     health.status === 'online' ? 'Backend Online' : health.status === 'loading' ? 'Checking Backend' : 'Backend Offline'
@@ -51,15 +47,7 @@ function AppShell({ children }) {
 
         <div className="absolute bottom-5 left-4 right-4 space-y-3">
           <StatusBadge tone={healthTone} label={healthLabel} />
-          <button
-            type="button"
-            className="flex w-full items-center justify-between rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-sm font-semibold text-on-surface outline-none transition hover:bg-surface-container-high focus-visible:ring-2 focus-visible:ring-primary/70"
-            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
-            aria-label="Toggle color theme"
-          >
-            Theme
-            {theme === 'dark' ? <Moon className="h-4 w-4" aria-hidden="true" /> : <Sun className="h-4 w-4" aria-hidden="true" />}
-          </button>
+          <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
         </div>
       </aside>
 
@@ -69,14 +57,7 @@ function AppShell({ children }) {
         </NavLink>
         <div className="flex items-center gap-2">
           <StatusBadge tone={healthTone} label={health.status === 'online' ? 'Online' : 'Offline'} />
-          <button
-            type="button"
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-outline-variant bg-surface-container outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-            onClick={() => setTheme((current) => (current === 'dark' ? 'light' : 'dark'))}
-            aria-label="Toggle color theme"
-          >
-            {theme === 'dark' ? <Moon className="h-4 w-4" aria-hidden="true" /> : <Sun className="h-4 w-4" aria-hidden="true" />}
-          </button>
+          <ThemeToggle compact isDark={isDark} onToggle={toggleTheme} />
         </div>
       </header>
 
