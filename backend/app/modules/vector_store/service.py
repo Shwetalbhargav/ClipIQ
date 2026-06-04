@@ -20,7 +20,7 @@ from collections.abc import Sequence
 
 from openai import AsyncOpenAI
 
-from .qdrant import QdrantTranscriptStore
+from .qdrant import QdrantTranscriptStore, QdrantVectorStoreError
 from .schema import IndexedVector, TranscriptChunkInput, VectorSearchRequest, VectorSearchResult, VectorStoreSettings
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,10 @@ class VectorStoreService:
     async def startup(self) -> None:
         """Prepare Qdrant resources at application or worker startup."""
 
-        await self.qdrant.ensure_collection()
+        try:
+            await self.qdrant.ensure_collection()
+        except QdrantVectorStoreError as exc:
+            logger.warning("Qdrant startup check failed; API will start in degraded mode: %s", exc)
 
     async def index_chunks(self, chunks: Sequence[TranscriptChunkInput]) -> list[IndexedVector]:
         """Embed and upsert transcript chunks.
