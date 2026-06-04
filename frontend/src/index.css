@@ -2,65 +2,120 @@
 
 @theme {
   --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
   --color-surface-container-lowest: var(--surface-container-lowest);
   --color-surface-container-low: var(--surface-container-low);
   --color-surface-container: var(--surface-container);
   --color-surface-container-high: var(--surface-container-high);
   --color-surface-container-highest: var(--surface-container-highest);
+  --color-surface-variant: var(--surface-variant);
   --color-background: var(--background);
+  --color-on-background: var(--on-background);
   --color-on-surface: var(--on-surface);
   --color-on-surface-variant: var(--on-surface-variant);
   --color-outline: var(--outline);
   --color-outline-variant: var(--outline-variant);
   --color-primary: var(--primary);
   --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
   --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
   --color-tertiary: var(--tertiary);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-on-tertiary-container: var(--on-tertiary-container);
   --color-warning: var(--warning);
+  --color-on-warning: var(--on-warning);
+  --color-warning-container: var(--warning-container);
+  --color-on-warning-container: var(--on-warning-container);
   --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
 :root {
   color-scheme: dark;
-  --surface: #0b1326;
-  --surface-container-lowest: #060e20;
-  --surface-container-low: #131b2e;
-  --surface-container: #171f33;
-  --surface-container-high: #222a3d;
-  --surface-container-highest: #2d3449;
-  --background: #0b1326;
-  --on-surface: #dae2fd;
-  --on-surface-variant: #c2c6d6;
-  --outline: #8c909f;
-  --outline-variant: #424754;
-  --primary: #adc6ff;
-  --on-primary: #002e6a;
-  --secondary: #d0bcff;
-  --tertiary: #4edea3;
+  --surface: #071329;
+  --surface-dim: #071329;
+  --surface-bright: #2e3951;
+  --surface-container-lowest: #030e23;
+  --surface-container-low: #101b31;
+  --surface-container: #141f36;
+  --surface-container-high: #1f2a41;
+  --surface-container-highest: #2a354c;
+  --surface-variant: #2a354c;
+  --background: #071329;
+  --on-background: #d8e2ff;
+  --on-surface: #d8e2ff;
+  --on-surface-variant: #c2c6d3;
+  --outline: #8c919d;
+  --outline-variant: #424751;
+  --primary: #a8c8ff;
+  --on-primary: #003061;
+  --primary-container: #6ea8ff;
+  --on-primary-container: #003c77;
+  --secondary: #d9b9ff;
+  --on-secondary: #3d2260;
+  --secondary-container: #573c7b;
+  --on-secondary-container: #f0dcff;
+  --tertiary: #80d7b8;
+  --on-tertiary: #00382a;
+  --tertiary-container: #5fb799;
+  --on-tertiary-container: #002117;
   --warning: #ffd36e;
+  --on-warning: #3d2a00;
+  --warning-container: #5a4300;
+  --on-warning-container: #ffe6a3;
   --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --on-error-container: #ffdad6;
 }
 
 :root[data-theme='light'] {
   color-scheme: light;
-  --surface: #f6f8ff;
+  --surface: #f9f9fc;
+  --surface-dim: #dedee7;
+  --surface-bright: #f9f9fc;
   --surface-container-lowest: #ffffff;
-  --surface-container-low: #eef3ff;
-  --surface-container: #e8eefb;
-  --surface-container-high: #dfe7f6;
-  --surface-container-highest: #d4deef;
-  --background: #f9fbff;
-  --on-surface: #162033;
-  --on-surface-variant: #4d586f;
-  --outline: #667189;
-  --outline-variant: #c5cede;
-  --primary: #235fb5;
+  --surface-container-low: #f6f6f9;
+  --surface-container: #f0f0f3;
+  --surface-container-high: #e7e8ee;
+  --surface-container-highest: #e1e2ec;
+  --surface-variant: #e1e2ec;
+  --background: #f9f9fc;
+  --on-background: #191c20;
+  --on-surface: #191c20;
+  --on-surface-variant: #44474e;
+  --outline: #74777f;
+  --outline-variant: #c4c6d0;
+  --primary: #105eb0;
   --on-primary: #ffffff;
-  --secondary: #7650b6;
-  --tertiary: #06704a;
-  --warning: #8a5a00;
+  --primary-container: #d6e3ff;
+  --on-primary-container: #001b3c;
+  --secondary: #625b71;
+  --on-secondary: #ffffff;
+  --secondary-container: #e8def8;
+  --on-secondary-container: #1e192b;
+  --tertiary: #006b54;
+  --on-tertiary: #ffffff;
+  --tertiary-container: #9bf4d3;
+  --on-tertiary-container: #002117;
+  --warning: #7a5900;
+  --on-warning: #ffffff;
+  --warning-container: #ffe08a;
+  --on-warning-container: #261900;
   --error: #b3261e;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --on-error-container: #410002;
 }
 
 * {
@@ -83,6 +138,9 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
 }
 
 button,
@@ -93,6 +151,16 @@ input {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--primary) 35%, transparent);
+  color: var(--on-surface);
+}
+
+::placeholder {
+  color: var(--outline);
+  opacity: 1;
 }
 
 .sr-only {

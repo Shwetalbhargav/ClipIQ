@@ -8,6 +8,25 @@
       name="description"
       content="ClipIQ compares one YouTube video against one Instagram Reel with source-cited RAG analysis."
     />
+    <meta name="theme-color" content="#071329" />
+    <script>
+      ;(() => {
+        const storageKey = 'clipiq.theme'
+        const fallbackTheme = 'dark'
+        const allowedThemes = new Set(['dark', 'light'])
+        let theme = fallbackTheme
+
+        try {
+          const storedTheme = window.localStorage.getItem(storageKey)
+          if (allowedThemes.has(storedTheme)) theme = storedTheme
+        } catch {
+          theme = fallbackTheme
+        }
+
+        document.documentElement.dataset.theme = theme
+        document.documentElement.style.colorScheme = theme
+      })()
+    </script>
     <title>ClipIQ</title>
   </head>
   <body>
