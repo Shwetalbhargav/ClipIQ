@@ -53,7 +53,7 @@ class MongoComparisonRepository:
     """Mongo-backed persistence for comparisons, videos, metrics, and transcripts."""
 
     def __init__(self, db=None) -> None:
-        self.db = db or get_database()
+        self.db = db if db is not None else get_database()
 
     async def create_comparison(self, *, comparison_id: str, youtube_url: str, instagram_url: str) -> None:
         now = utc_now()

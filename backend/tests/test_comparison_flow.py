@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import pytest
 
 from app.modules.comparisons.schema import ComparisonAnalyzeRequest
-from app.modules.comparisons.service import ComparisonAnalysisService
+from app.modules.comparisons.service import ComparisonAnalysisService, MongoComparisonRepository
 from app.modules.transcript_processing.schema import (
     TranscriptChunk,
     TranscriptExtractionResult,
@@ -106,6 +106,11 @@ class FakeRepository:
             "metrics": self.metrics,
             "chunks": self.chunks,
         }
+
+
+class PyMongoLikeDatabase(dict):
+    def __bool__(self):
+        raise NotImplementedError("Database objects do not implement truth value testing")
 
 
 class FakeIngestionService:
@@ -226,3 +231,11 @@ async def test_comparison_service_runs_end_to_end_with_fakes() -> None:
     assert len(vector.calls) == 2
     assert "save_transcript_result" in repo.calls
     assert "update_chunk_point_ids" in repo.calls
+
+
+def test_mongo_repository_does_not_truth_test_database() -> None:
+    db = PyMongoLikeDatabase()
+
+    repo = MongoComparisonRepository(db)
+
+    assert repo.db is db
