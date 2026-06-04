@@ -92,7 +92,7 @@ function ChatPanel({ comparisonId, disabled }) {
                   {message.citations.map((citation) => (
                     <div key={citation.id} className="rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-xs">
                       <p className="font-semibold text-on-surface">
-                        {citation.label} · {formatTimestampRange(citation.startSeconds, citation.endSeconds)}
+                        {citation.label} - {formatTimestampRange(citation.startSeconds, citation.endSeconds)}
                       </p>
                       <p className="mt-1 line-clamp-3 text-on-surface-variant">{citation.text || 'Citation excerpt unavailable.'}</p>
                     </div>

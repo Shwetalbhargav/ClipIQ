@@ -30,8 +30,14 @@ function AppShell({ children }) {
   }, [theme])
 
   const healthLabel =
-    health.status === 'online' ? 'Backend Online' : health.status === 'loading' ? 'Checking Backend' : 'Backend Offline'
-  const healthTone = health.status === 'online' ? 'ready' : health.status === 'loading' ? 'neutral' : 'offline'
+    health.status === 'online'
+      ? 'Backend Online'
+      : health.status === 'degraded'
+        ? 'Service Degraded'
+        : health.status === 'loading'
+          ? 'Checking Backend'
+          : 'Backend Offline'
+  const healthTone = health.status === 'online' ? 'ready' : health.status === 'degraded' ? 'partial' : health.status === 'loading' ? 'neutral' : 'offline'
 
   return (
     <div className="min-h-screen bg-background text-on-surface">
@@ -68,7 +74,7 @@ function AppShell({ children }) {
           <Logo compact />
         </NavLink>
         <div className="flex items-center gap-2">
-          <StatusBadge tone={healthTone} label={health.status === 'online' ? 'Online' : 'Offline'} />
+          <StatusBadge tone={healthTone} label={health.status === 'online' ? 'Online' : health.status === 'degraded' ? 'Degraded' : 'Offline'} />
           <button
             type="button"
             className="flex h-10 w-10 items-center justify-center rounded-lg border border-outline-variant bg-surface-container outline-none focus-visible:ring-2 focus-visible:ring-primary/70"

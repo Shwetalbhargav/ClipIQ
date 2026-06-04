@@ -1,6 +1,7 @@
 import { AlertCircle, Loader2, RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { isNotFoundError } from '../api/client.js'
 import { getComparison } from '../api/comparisons.js'
 import ChatPanel from '../components/chat/ChatPanel.jsx'
 import VideoCard from '../components/comparison/VideoCard.jsx'
@@ -26,7 +27,7 @@ function ComparisonPage() {
       const comparison = await getComparison(comparisonId)
       setState({ status: 'loaded', comparison, error: null })
     } catch (error) {
-      setState({ status: error.status === 404 ? 'not-found' : 'error', comparison: null, error })
+      setState({ status: isNotFoundError(error) ? 'not-found' : 'error', comparison: null, error })
     }
   }, [comparisonId])
 
@@ -38,7 +39,7 @@ function ComparisonPage() {
         if (active) setState({ status: 'loaded', comparison, error: null })
       })
       .catch((error) => {
-        if (active) setState({ status: error.status === 404 ? 'not-found' : 'error', comparison: null, error })
+        if (active) setState({ status: isNotFoundError(error) ? 'not-found' : 'error', comparison: null, error })
       })
 
     return () => {

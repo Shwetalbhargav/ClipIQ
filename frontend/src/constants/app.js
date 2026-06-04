@@ -1,6 +1,8 @@
 export const APP_NAME = 'ClipIQ'
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+export const LOCAL_API_BASE_URL = 'http://localhost:8000/api'
+export const RENDER_API_BASE_URL = 'https://clipiq-bmpu.onrender.com/api'
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || RENDER_API_BASE_URL
 
 export const ROUTES = {
   create: '/',

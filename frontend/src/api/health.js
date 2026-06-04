@@ -1,15 +1,28 @@
-import { requestJson } from './client.js'
+import { invalidPayloadError, requestJson } from './client.js'
 
-export function normalizeHealth(payload) {
+function normalizeServiceStatus(value) {
+  return typeof value === 'string' && value.trim() ? value : 'unknown'
+}
+
+export function normalizeHealth(payload, { endpoint = null } = {}) {
+  if (!payload || typeof payload !== 'object') {
+    throw invalidPayloadError('The backend returned an invalid health payload.', { endpoint, payload })
+  }
+
+  const services = payload.services && typeof payload.services === 'object' && !Array.isArray(payload.services)
+    ? Object.fromEntries(Object.entries(payload.services).map(([name, status]) => [name, normalizeServiceStatus(status)]))
+    : {}
+
   return {
-    status: payload?.status || 'unknown',
-    service: payload?.service || 'ClipIQ',
-    environment: payload?.environment || null,
-    services: payload?.services || {},
+    status: normalizeServiceStatus(payload.status),
+    service: typeof payload.service === 'string' && payload.service.trim() ? payload.service : 'ClipIQ',
+    environment: typeof payload.environment === 'string' && payload.environment.trim() ? payload.environment : null,
+    services,
   }
 }
 
 export async function getHealth() {
-  const payload = await requestJson('/health')
-  return normalizeHealth(payload)
+  const endpoint = '/health'
+  const payload = await requestJson(endpoint)
+  return normalizeHealth(payload, { endpoint })
 }
