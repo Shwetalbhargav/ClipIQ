@@ -21,7 +21,7 @@ class VideoLabel(str, Enum):
 
 
 class VectorStoreSettings(BaseModel):
-    """Runtime configuration for OpenAI embeddings and Qdrant.
+    """Runtime configuration for embeddings and Qdrant.
 
     Values should normally be loaded from environment variables by the app config
     layer and then passed into the vector store module. Keeping this as a plain
@@ -32,10 +32,12 @@ class VectorStoreSettings(BaseModel):
     qdrant_api_key: str | None = Field(default=None)
     qdrant_collection: str = Field(default="video_transcript_chunks")
 
-    # text-embedding-3-small currently returns 1536 dimensions by default. If you
-    # pass a custom dimensions value to OpenAI, keep qdrant_vector_size aligned.
+    # text-embedding-3-small returns 1536 dimensions. Local models such as BGE/E5
+    # are padded or truncated to qdrant_vector_size so existing collections work.
     openai_embedding_model: str = Field(default="text-embedding-3-small")
     openai_api_key: str | None = Field(default=None)
+    embedding_provider: Literal["openai", "sentence_transformers", "local_hash"] = Field(default="openai")
+    embedding_model: str = Field(default="BAAI/bge-small-en-v1.5")
     qdrant_vector_size: int = Field(default=1536, gt=0)
 
     # Operational defaults: tuned for short-form transcript chunks, not giant docs.

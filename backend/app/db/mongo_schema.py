@@ -221,12 +221,21 @@ async def create_or_update_collection(name: str, schema: dict) -> None:
     db = get_database()
 
     existing_collections = await db.list_collection_names()
+    validator = {"$jsonSchema": schema}
 
     if name in existing_collections:
-        print(f"[MongoDB] Collection already exists, skipping validator update: {name}")
+        try:
+            await db.command(
+                {
+                    "collMod": name,
+                    "validator": validator,
+                    "validationLevel": "moderate",
+                }
+            )
+            print(f"[MongoDB] Updated collection validator: {name}")
+        except OperationFailure as exc:
+            print(f"[MongoDB] Could not update collection {name}, continuing with existing validator: {exc}")
         return
-
-    validator = {"$jsonSchema": schema}
 
     try:
         await db.create_collection(

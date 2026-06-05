@@ -133,11 +133,24 @@ class ChatService:
         user_message = ChatMessage(role=ChatRole.USER, content=request.message)
         await self.memory_store.append_message(request.session_id, user_message)
 
-        chunks = await self.retriever.retrieve(
-            session_id=request.session_id,
-            query=request.message,
-            top_k=request.top_k or self.config.default_top_k,
-        )
+        try:
+            chunks = await self.retriever.retrieve(
+                session_id=request.session_id,
+                query=request.message,
+                top_k=request.top_k or self.config.default_top_k,
+            )
+        except Exception as exc:
+            logger.warning("Chat retrieval failed; using local comparison fallback", exc_info=True)
+            fallback = self._local_fallback_response(
+                request=request,
+                comparison_context=comparison_context,
+                reason=f"Semantic retrieval is unavailable: {exc}",
+            )
+            await self.memory_store.append_message(
+                request.session_id,
+                ChatMessage(role=ChatRole.ASSISTANT, content=fallback.answer),
+            )
+            return fallback
 
         graph_state = self._build_graph_state(
             request=request,
@@ -150,7 +163,17 @@ class ChatService:
             graph_result = await self.graph_runner.ainvoke(graph_state)
         except Exception as exc:  # pragma: no cover - defensive production logging branch
             logger.exception("LangGraph chat execution failed", extra={"session_id": request.session_id})
-            raise GraphExecutionError("Unable to generate a chat answer right now.") from exc
+            fallback = self._local_fallback_response(
+                request=request,
+                comparison_context=comparison_context,
+                chunks=chunks,
+                reason=f"Model generation is unavailable: {exc}",
+            )
+            await self.memory_store.append_message(
+                request.session_id,
+                ChatMessage(role=ChatRole.ASSISTANT, content=fallback.answer),
+            )
+            return fallback
 
         answer = self._extract_answer(graph_result)
         citations = self._extract_citations(graph_result, chunks)
@@ -168,6 +191,76 @@ class ChatService:
             citations=citations,
             model=model,
             usage=usage,
+        )
+
+    def _local_fallback_response(
+        self,
+        *,
+        request: ChatRequest,
+        comparison_context: dict[str, Any],
+        chunks: list[RetrievedChunk] | None = None,
+        reason: str,
+    ) -> ChatResponse:
+        """Return a deterministic answer when vector search or LLM generation is unavailable."""
+
+        videos = comparison_context.get("videos") or []
+        metrics = comparison_context.get("metrics") or []
+        stored_chunks = comparison_context.get("chunks") or []
+
+        metrics_by_video = {item.get("video_id"): item for item in metrics if isinstance(item, dict)}
+        lines = [
+            "I can still help from the stored comparison data, but the full RAG path is unavailable right now.",
+            reason,
+            "",
+            f"Question: {request.message}",
+        ]
+
+        for video in videos:
+            if not isinstance(video, dict):
+                continue
+            label = video.get("video_label") or "?"
+            metric = metrics_by_video.get(video.get("_id"), {})
+            details = [
+                f"Video {label} ({video.get('platform', 'unknown')})",
+                f"title: {video.get('title') or 'unavailable'}",
+                f"creator: {video.get('creator') or 'unavailable'}",
+                f"views: {metric.get('views') if metric.get('views') is not None else 'unavailable'}",
+                f"likes: {metric.get('likes') if metric.get('likes') is not None else 'unavailable'}",
+                f"comments: {metric.get('comments') if metric.get('comments') is not None else 'unavailable'}",
+                f"engagement rate: {metric.get('engagement_rate') if metric.get('engagement_rate') is not None else 'unavailable'}",
+            ]
+            lines.append("; ".join(details) + ".")
+
+        if stored_chunks:
+            lines.append("Transcript text is stored, but semantic ranking is unavailable, so I am citing the first available chunks.")
+        else:
+            lines.append("No transcript chunks are available for citation.")
+
+        fallback_citations = [chunk.to_citation() for chunk in (chunks or [])[:4]]
+        if not fallback_citations:
+            for chunk in stored_chunks[:4]:
+                if not isinstance(chunk, dict):
+                    continue
+                fallback_citations.append(
+                    SourceCitation(
+                        label=f"Video {chunk.get('video_label', '?')} Chunk {chunk.get('chunk_index', 0)}",
+                        video_id=chunk.get("video_label") or "?",
+                        chunk_id=chunk.get("_id"),
+                        chunk_index=chunk.get("chunk_index"),
+                        platform=chunk.get("platform"),
+                        start_seconds=chunk.get("start_seconds"),
+                        end_seconds=chunk.get("end_seconds"),
+                        text=(chunk.get("text") or "")[:500],
+                        metadata={"fallback": True},
+                    )
+                )
+
+        return ChatResponse(
+            session_id=request.session_id,
+            answer="\n".join(lines),
+            citations=fallback_citations,
+            model="local-comparison-fallback",
+            usage={"prompt_tokens": 0, "completion_tokens": 0},
         )
 
     def _build_graph_state(
