@@ -4,6 +4,7 @@ import UnavailableValue from '../ui/UnavailableValue.jsx'
 function VideoCardBase({
   accentClassName = 'text-primary',
   children,
+  className = '',
   creator,
   icon: Icon,
   label,
@@ -13,7 +14,7 @@ function VideoCardBase({
   thumbnailUrl,
 }) {
   return (
-    <Card className="min-w-0 overflow-hidden">
+    <Card className={`min-w-0 overflow-hidden ${className}`}>
       <CardHeader className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           {Icon && <Icon className={`h-5 w-5 shrink-0 ${accentClassName}`} aria-hidden="true" />}

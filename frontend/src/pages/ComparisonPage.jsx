@@ -3,12 +3,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getComparison } from '../api/comparisons.js'
 import ChatPanel from '../components/chat/ChatPanel.jsx'
+import EngagementSummary from '../components/comparison/EngagementSummary.jsx'
 import VideoCard from '../components/comparison/VideoCard.jsx'
 import Button from '../components/ui/Button.jsx'
 import Card from '../components/ui/Card.jsx'
 import ErrorAlert from '../components/ui/ErrorAlert.jsx'
 import Skeleton from '../components/ui/Skeleton.jsx'
 import StatusBadge from '../components/ui/StatusBadge.jsx'
+import { compareEngagement } from '../utils/engagement.js'
 import { formatDate } from '../utils/formatters.js'
 
 function statusTone(status) {
@@ -85,12 +87,14 @@ function ComparisonPage() {
 
   const { comparison } = state
   const chatDisabled = comparison.status === 'failed'
+  const engagement = compareEngagement(comparison.videoA, comparison.videoB)
+  const winnerLabel = engagement.winner === 'A' || engagement.winner === 'B' ? engagement.winner : null
 
   return (
     <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Comparison</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Comparison report</p>
           <h1 className="mt-2 truncate text-2xl font-bold text-on-surface sm:text-3xl">{comparison.id}</h1>
           <p className="mt-1 text-sm text-on-surface-variant">Updated {formatDate(comparison.updatedAt)}</p>
         </div>
@@ -108,9 +112,26 @@ function ComparisonPage() {
       )}
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="grid min-w-0 gap-6 md:grid-cols-2">
-          <VideoCard video={comparison.videoA} />
-          <VideoCard video={comparison.videoB} />
+        <div className="min-w-0 space-y-6">
+          <EngagementSummary comparison={comparison} />
+          <div className="grid min-w-0 gap-6 md:grid-cols-2">
+            <VideoCard
+              video={comparison.videoA}
+              fallbackLabel="Video A"
+              fallbackPlatform="YouTube"
+              transcriptStatus={comparison.transcriptStatus}
+              indexingStatus={comparison.indexingStatus}
+              isWinner={winnerLabel === 'A'}
+            />
+            <VideoCard
+              video={comparison.videoB}
+              fallbackLabel="Video B"
+              fallbackPlatform="Instagram Reel"
+              transcriptStatus={comparison.transcriptStatus}
+              indexingStatus={comparison.indexingStatus}
+              isWinner={winnerLabel === 'B'}
+            />
+          </div>
         </div>
         <ChatPanel comparisonId={comparison.id} disabled={chatDisabled} />
       </div>
