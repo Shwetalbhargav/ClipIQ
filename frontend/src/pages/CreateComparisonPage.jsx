@@ -7,6 +7,7 @@ import Button from '../components/ui/Button.jsx'
 import Card, { CardBody, CardHeader } from '../components/ui/Card.jsx'
 import ErrorAlert from '../components/ui/ErrorAlert.jsx'
 import HealthBadge from '../components/ui/HealthBadge.jsx'
+import ServiceDiagnostics from '../components/ui/ServiceDiagnostics.jsx'
 import StatusBadge from '../components/ui/StatusBadge.jsx'
 import { ROUTES } from '../constants/app.js'
 import { useHealth } from '../hooks/useHealth.js'
@@ -35,6 +36,19 @@ const featureTiles = [
     icon: BookOpen,
   },
 ]
+
+function submitHelperText(status) {
+  if (status === 'online') {
+    return 'Backend health is online. Platform extraction can still fail if a source requires login or rate-limits access.'
+  }
+  if (status === 'loading') {
+    return 'Checking backend health. You can keep typing while the health check completes.'
+  }
+  if (status === 'degraded') {
+    return 'Backend health is degraded. You can submit, but comparison creation may return partial or failed results.'
+  }
+  return 'Backend appears offline. You can still edit URLs, but submit may fail until the API is reachable.'
+}
 
 function CreateComparisonPage() {
   const navigate = useNavigate()
@@ -120,11 +134,11 @@ function CreateComparisonPage() {
                 <Button type="submit" variant="primary" size="lg" className="w-full" isLoading={isSubmitting}>
                   {isSubmitting ? 'Creating comparison' : 'Analyze'}
                 </Button>
-                <p className="flex gap-2 text-xs leading-5 text-on-surface-variant">
-                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                  Backend health is informational only. You can type and submit while it is checking or offline.
-                </p>
-              </form>
+              <p className={`flex gap-2 text-xs leading-5 ${health.status === 'online' || health.status === 'loading' ? 'text-on-surface-variant' : 'text-error'}`}>
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                {submitHelperText(health.status)}
+              </p>
+            </form>
             </CardBody>
           </Card>
 
@@ -141,26 +155,30 @@ function CreateComparisonPage() {
           </div>
         </div>
 
-        <Card as="aside" className="p-5">
-          <h2 className="text-base font-semibold text-on-surface">Processing states</h2>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <StatusBadge tone="ready" label="Ready" />
-            <StatusBadge tone="partial" label="Partial" />
-            <StatusBadge tone="failed" label="Failed" />
-          </div>
-          <div className="mt-6 rounded-lg border border-outline-variant bg-surface-container-lowest p-4">
-            <p className="text-sm font-semibold text-on-surface">Unavailable values stay visible</p>
-            <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-              Missing metrics, transcripts, thumbnails, citations, and backend fields are displayed as unavailable instead of being guessed.
-            </p>
-          </div>
-          <div className="mt-4 rounded-lg border border-outline-variant bg-surface-container-lowest p-4">
-            <p className="text-sm font-semibold text-on-surface">Supported sources</p>
-            <p className="mt-2 text-sm leading-6 text-on-surface-variant">
-              Video A must be a YouTube watch URL. Video B must be an Instagram Reel URL.
-            </p>
-          </div>
-        </Card>
+        <div className="space-y-6">
+          <ServiceDiagnostics health={health} />
+
+          <Card as="aside" className="p-5">
+            <h2 className="text-base font-semibold text-on-surface">Processing states</h2>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <StatusBadge tone="ready" label="Ready" />
+              <StatusBadge tone="partial" label="Partial" />
+              <StatusBadge tone="failed" label="Failed" />
+            </div>
+            <div className="mt-6 rounded-lg border border-outline-variant bg-surface-container-lowest p-4">
+              <p className="text-sm font-semibold text-on-surface">Unavailable values stay visible</p>
+              <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+                Missing metrics, transcripts, thumbnails, citations, and backend fields are displayed as unavailable instead of being guessed.
+              </p>
+            </div>
+            <div className="mt-4 rounded-lg border border-outline-variant bg-surface-container-lowest p-4">
+              <p className="text-sm font-semibold text-on-surface">Supported sources</p>
+              <p className="mt-2 text-sm leading-6 text-on-surface-variant">
+                Video A must be a YouTube watch URL. Video B must be an Instagram Reel URL.
+              </p>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   )
