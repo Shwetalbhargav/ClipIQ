@@ -1,11 +1,12 @@
 import { SearchX } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import Card from '../components/ui/Card.jsx'
 import { ROUTES } from '../constants/app.js'
 
 function NotFoundPage() {
   return (
     <div className="mx-auto flex min-h-[calc(100vh-64px)] w-full max-w-3xl items-center px-4 py-10 sm:px-6">
-      <section className="w-full rounded-xl border border-outline-variant bg-surface-container p-8">
+      <Card className="w-full p-8">
         <SearchX className="h-7 w-7 text-error" aria-hidden="true" />
         <h1 className="mt-3 text-2xl font-bold text-on-surface">Page not found</h1>
         <p className="mt-2 text-sm text-on-surface-variant">This route does not exist in ClipIQ.</p>
@@ -15,7 +16,7 @@ function NotFoundPage() {
         >
           Create comparison
         </Link>
-      </section>
+      </Card>
     </div>
   )
 }

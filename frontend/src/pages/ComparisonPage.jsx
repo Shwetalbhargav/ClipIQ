@@ -1,9 +1,13 @@
-import { AlertCircle, Loader2, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getComparison } from '../api/comparisons.js'
 import ChatPanel from '../components/chat/ChatPanel.jsx'
 import VideoCard from '../components/comparison/VideoCard.jsx'
+import Button from '../components/ui/Button.jsx'
+import Card from '../components/ui/Card.jsx'
+import ErrorAlert from '../components/ui/ErrorAlert.jsx'
+import Skeleton from '../components/ui/Skeleton.jsx'
 import StatusBadge from '../components/ui/StatusBadge.jsx'
 import { formatDate } from '../utils/formatters.js'
 
@@ -49,10 +53,11 @@ function ComparisonPage() {
   if (state.status === 'loading') {
     return (
       <div className="flex min-h-[calc(100vh-64px)] items-center justify-center px-4">
-        <div className="rounded-xl border border-outline-variant bg-surface-container p-6 text-center">
-          <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" aria-hidden="true" />
+        <Card className="w-full max-w-sm p-6 text-center">
+          <Skeleton className="mx-auto h-8 w-8 rounded-full" />
           <p className="mt-3 text-sm font-semibold text-on-surface">Loading comparison</p>
-        </div>
+          <Skeleton className="mt-4 h-3 w-full" />
+        </Card>
       </div>
     )
   }
@@ -60,19 +65,20 @@ function ComparisonPage() {
   if (state.status === 'not-found' || state.status === 'error') {
     return (
       <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6">
-        <div className="rounded-xl border border-outline-variant bg-surface-container p-6">
-          <AlertCircle className="h-6 w-6 text-error" aria-hidden="true" />
-          <h1 className="mt-3 text-2xl font-bold text-on-surface">{state.status === 'not-found' ? 'Comparison not found' : 'Unable to load comparison'}</h1>
-          <p className="mt-2 text-sm text-on-surface-variant">{state.error?.message || 'The backend did not return a usable comparison.'}</p>
-          <button
+        <Card className="p-6">
+          <ErrorAlert title={state.status === 'not-found' ? 'Comparison not found' : 'Unable to load comparison'}>
+            {state.error?.message || 'The backend did not return a usable comparison.'}
+          </ErrorAlert>
+          <Button
+            className="mt-5"
+            icon={RefreshCw}
+            onClick={() => loadComparison()}
             type="button"
-            onClick={loadComparison}
-            className="mt-5 inline-flex items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-high px-3 py-2 text-sm font-semibold text-on-surface outline-none hover:bg-surface-container-highest focus-visible:ring-2 focus-visible:ring-primary/70"
+            variant="secondary"
           >
-            <RefreshCw className="h-4 w-4" aria-hidden="true" />
             Retry
-          </button>
-        </div>
+          </Button>
+        </Card>
       </div>
     )
   }
@@ -92,14 +98,13 @@ function ComparisonPage() {
       </div>
 
       {comparison.errors.length > 0 && (
-        <div className="mb-6 rounded-xl border border-error/40 bg-error/10 p-4 text-sm text-error">
-          <p className="font-semibold">Backend reported issues</p>
-          <ul className="mt-2 space-y-1">
+        <ErrorAlert className="mb-6" title="Backend reported issues">
+          <ul className="space-y-1">
             {comparison.errors.map((error, index) => (
               <li key={`${error.code || 'error'}-${index}`}>{error.message || error.code || 'Processing issue unavailable.'}</li>
             ))}
           </ul>
-        </div>
+        </ErrorAlert>
       )}
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
