@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
@@ -30,6 +31,8 @@ from app.modules.video_ingestion.service import VideoIngestionService
 
 from .schema import ComparisonAnalyzeRequest, ComparisonAnalyzeResponse, ComparisonGetResponse, VideoSummary
 
+logger = logging.getLogger(__name__)
+
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -47,6 +50,17 @@ def jsonable_dataclass(value: Any) -> Any:
 
 def metric_value(metric: MetricValue | None) -> int | None:
     return None if metric is None else metric.value
+
+
+def mongo_transcript_source_type(source_type: Any) -> str:
+    """Return a value accepted by both old and new Mongo transcript validators."""
+
+    value = getattr(source_type, "value", source_type)
+    if value == "manual_captions":
+        return "manual_caption"
+    if value in {"auto_captions", "yt_dlp_captions"}:
+        return "auto_caption"
+    return str(value or "unknown")
 
 
 class MongoComparisonRepository:
@@ -178,7 +192,7 @@ class MongoComparisonRepository:
                             "start_seconds": segment.start_seconds,
                             "end_seconds": segment.end_seconds,
                             "text": segment.text,
-                            "source_type": segment.source_type.value,
+                            "source_type": mongo_transcript_source_type(segment.source_type),
                             "created_at": now,
                         },
                     )
@@ -378,8 +392,8 @@ class ProductionRetriever:
 class OpenAIResponseGenerator:
     """Grounded response generator used by the LangGraph response node."""
 
-    def __init__(self, *, api_key: str | None, model: str) -> None:
-        self.client = AsyncOpenAI(api_key=api_key)
+    def __init__(self, *, api_key: str | None, model: str, base_url: str | None = None) -> None:
+        self.client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self.model = model
 
     async def generate(self, *, question: str, context: str, memory: list[dict[str, str]]) -> str:
@@ -425,10 +439,11 @@ class ChatServiceStreamer:
         graph_deps: GraphDependencies | None = None,
         api_key: str | None = None,
         model: str = "gpt-4o-mini",
+        base_url: str | None = None,
     ) -> None:
         self.chat_service = chat_service
         self.graph_deps = graph_deps
-        self.openai = AsyncOpenAI(api_key=api_key) if graph_deps is not None else None
+        self.openai = AsyncOpenAI(api_key=api_key, base_url=base_url) if graph_deps is not None else None
         self.model = model
 
     async def stream_chat(self, *, comparison_id: str, message: str, response_id: str, user_id: str | None = None):
@@ -439,30 +454,36 @@ class ChatServiceStreamer:
                 yield item
             return
 
-        memory = await self.graph_deps.memory_repo.get_recent_messages(comparison_id=comparison_id, limit=6)
-        retrieved_a = await self.graph_deps.retriever.retrieve(
-            comparison_id=comparison_id,
-            video_id="A",
-            query=message,
-            top_k=self.graph_deps.top_k_per_video,
-        )
-        retrieved_b = await self.graph_deps.retriever.retrieve(
-            comparison_id=comparison_id,
-            video_id="B",
-            query=message,
-            top_k=self.graph_deps.top_k_per_video,
-        )
-        metadata = await self.graph_deps.metadata_repo.get_video_metadata(comparison_id=comparison_id)
-        state: dict[str, Any] = {
-            "comparison_id": comparison_id,
-            "question": message,
-            "memory": memory,
-            "retrieved_a": retrieved_a,
-            "retrieved_b": retrieved_b,
-            "metadata": metadata,
-        }
-        state.update(await create_compare_node(self.graph_deps)(state))
-        state.update(await create_build_context_node(self.graph_deps)(state))
+        try:
+            memory = await self.graph_deps.memory_repo.get_recent_messages(comparison_id=comparison_id, limit=6)
+            retrieved_a = await self.graph_deps.retriever.retrieve(
+                comparison_id=comparison_id,
+                video_id="A",
+                query=message,
+                top_k=self.graph_deps.top_k_per_video,
+            )
+            retrieved_b = await self.graph_deps.retriever.retrieve(
+                comparison_id=comparison_id,
+                video_id="B",
+                query=message,
+                top_k=self.graph_deps.top_k_per_video,
+            )
+            metadata = await self.graph_deps.metadata_repo.get_video_metadata(comparison_id=comparison_id)
+            state: dict[str, Any] = {
+                "comparison_id": comparison_id,
+                "question": message,
+                "memory": memory,
+                "retrieved_a": retrieved_a,
+                "retrieved_b": retrieved_b,
+                "metadata": metadata,
+            }
+            state.update(await create_compare_node(self.graph_deps)(state))
+            state.update(await create_build_context_node(self.graph_deps)(state))
+        except Exception:
+            logger.warning("Streaming chat retrieval failed; using fallback chat", exc_info=True)
+            async for item in self._fallback_stream(comparison_id=comparison_id, message=message):
+                yield item
+            return
 
         await self.graph_deps.memory_repo.append_message(
             comparison_id=comparison_id,
@@ -471,30 +492,36 @@ class ChatServiceStreamer:
         )
 
         memory_text = "\n".join(f"{item['role']}: {item['content']}" for item in memory[-6:])
-        stream = await self.openai.chat.completions.create(
-            model=self.model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are ClipIQ, a source-grounded social video analyst. "
-                        "Use only the provided metadata and transcript chunks. "
-                        "Cite transcript claims with labels like [Video A Chunk 0]. "
-                        "Say when evidence is missing."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": (
-                        f"MEMORY\n{memory_text}\n\n"
-                        f"CONTEXT\n{state.get('context', '')}\n\n"
-                        f"QUESTION\n{message}"
-                    ),
-                },
-            ],
-            temperature=0.2,
-            stream=True,
-        )
+        try:
+            stream = await self.openai.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are ClipIQ, a source-grounded social video analyst. "
+                            "Use only the provided metadata and transcript chunks. "
+                            "Cite transcript claims with labels like [Video A Chunk 0]. "
+                            "Say when evidence is missing."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            f"MEMORY\n{memory_text}\n\n"
+                            f"CONTEXT\n{state.get('context', '')}\n\n"
+                            f"QUESTION\n{message}"
+                        ),
+                    },
+                ],
+                temperature=0.2,
+                stream=True,
+            )
+        except Exception:
+            logger.warning("Streaming OpenAI chat failed; using fallback chat", exc_info=True)
+            async for item in self._fallback_stream(comparison_id=comparison_id, message=message):
+                yield item
+            return
 
         answer_parts: list[str] = []
         async for chunk in stream:
@@ -599,7 +626,11 @@ class ComparisonAnalysisService:
                 label=label,
                 platform=metadata.platform.value,
                 result=result,
-                embedding_model=self.vector_service.settings.openai_embedding_model,
+                embedding_model=getattr(
+                    self.vector_service,
+                    "embedding_model_name",
+                    self.vector_service.settings.openai_embedding_model,
+                ),
             )
             indexed_counts[label] = await self._index_chunks(
                 comparison_id=comparison_id,
@@ -607,6 +638,7 @@ class ComparisonAnalysisService:
                 video_doc_id=video_doc_id,
                 metadata=metadata,
                 result=result,
+                errors=errors,
             )
 
         engagement = self._engagement_payload(video_items)
@@ -660,6 +692,7 @@ class ComparisonAnalysisService:
         video_doc_id: str,
         metadata: NormalizedVideoMetadata,
         result: TranscriptExtractionResult,
+        errors: list[dict[str, Any]],
     ) -> int:
         inputs = [
             TranscriptChunkInput(
@@ -682,7 +715,19 @@ class ComparisonAnalysisService:
         ]
         if not inputs:
             return 0
-        indexed = await self.vector_service.index_chunks(inputs)
+        try:
+            indexed = await self.vector_service.index_chunks(inputs)
+        except Exception as exc:
+            logger.warning("Vector indexing failed for video %s", label, exc_info=True)
+            errors.append(
+                {
+                    "video_id": label,
+                    "code": "INDEXING_UNAVAILABLE",
+                    "message": f"Transcript indexing unavailable: {exc}",
+                    "retryable": True,
+                }
+            )
+            return 0
         await self.repository.update_chunk_point_ids(
             updates=[
                 {"chunk_doc_id": item.chunk_id, "point_id": item.point_id}

@@ -18,6 +18,7 @@ from app.modules.comparisons.service import (
 )
 from app.modules.graph.nodes import GraphDependencies
 from app.modules.memory.service import MongoMemoryRepository
+from app.modules.transcript_processing.schema import TranscriptProcessingConfig
 from app.modules.streaming.service import StreamingService
 from app.modules.transcript_processing.service import TranscriptProcessingService
 from app.modules.vector_store.schema import VectorStoreSettings
@@ -53,6 +54,8 @@ async def build_app_container() -> AppContainer:
             qdrant_collection=settings.qdrant_collection,
             openai_embedding_model=settings.openai_embedding_model,
             openai_api_key=settings.openai_api_key or "",
+            embedding_provider=settings.embedding_provider,
+            embedding_model=settings.embedding_model,
             qdrant_vector_size=settings.embedding_dimension,
         )
     )
@@ -61,7 +64,14 @@ async def build_app_container() -> AppContainer:
     comparison_repository = MongoComparisonRepository(db)
     memory_store = ProductionMemoryStore(MongoMemoryRepository(db))
     retriever = ProductionRetriever(vector_service)
-    response_generator = OpenAIResponseGenerator(api_key=settings.openai_api_key or "", model=settings.openai_chat_model)
+    chat_api_key = settings.groq_api_key or settings.openai_api_key or ""
+    chat_model = settings.groq_chat_model if settings.groq_api_key else settings.openai_chat_model
+    chat_base_url = "https://api.groq.com/openai/v1" if settings.groq_api_key else None
+    response_generator = OpenAIResponseGenerator(
+        api_key=chat_api_key,
+        model=chat_model,
+        base_url=chat_base_url,
+    )
 
     graph_deps = GraphDependencies(
         retriever=retriever,
@@ -77,21 +87,27 @@ async def build_app_container() -> AppContainer:
         retriever=retriever,
         comparison_repository=comparison_repository,
         graph_runner=graph_runner,
-        config=ChatServiceConfig(model_name=settings.openai_chat_model),
+        config=ChatServiceConfig(model_name=chat_model),
     )
     streaming_service = StreamingService(
         ChatServiceStreamer(
             chat_service,
             graph_deps=graph_deps,
-            api_key=settings.openai_api_key or "",
-            model=settings.openai_chat_model,
+            api_key=chat_api_key,
+            model=chat_model,
+            base_url=chat_base_url,
         ),
-        model_name=settings.openai_chat_model,
+        model_name=chat_model,
     )
     analysis_service = ComparisonAnalysisService(
         repository=comparison_repository,
         ingestion_service=VideoIngestionService(),
-        transcript_service=TranscriptProcessingService(),
+        transcript_service=TranscriptProcessingService(
+            TranscriptProcessingConfig(
+                enable_whisper_fallback=settings.enable_whisper_fallback,
+                whisper_model=settings.whisper_model,
+            )
+        ),
         vector_service=vector_service,
     )
 

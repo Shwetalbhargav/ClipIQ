@@ -80,8 +80,10 @@ function ChatPanel({ comparisonId, disabled }) {
 
       <CardBody className="flex-1 space-y-3 overflow-y-auto">
         {messages.length === 0 ? (
-          <EmptyState title="Chat unavailable until analysis is usable" className="p-4" icon={Bot}>
-            Chat is available after the comparison is ready or partially usable.
+          <EmptyState title={disabled ? 'Chat unavailable until analysis is usable' : 'Ask about this comparison'} className="p-4" icon={Bot}>
+            {disabled
+              ? 'Chat is available after the comparison is ready or partially usable.'
+              : 'Ask about performance, transcript evidence, engagement, or differences between the two videos.'}
           </EmptyState>
         ) : (
           messages.map((message) => <ChatMessage key={message.id} message={message} />)

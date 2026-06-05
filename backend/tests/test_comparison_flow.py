@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import pytest
 
 from app.modules.comparisons.schema import ComparisonAnalyzeRequest
-from app.modules.comparisons.service import ComparisonAnalysisService, MongoComparisonRepository
+from app.modules.comparisons.service import ComparisonAnalysisService, MongoComparisonRepository, mongo_transcript_source_type
 from app.modules.transcript_processing.schema import (
     TranscriptChunk,
     TranscriptExtractionResult,
@@ -239,3 +239,10 @@ def test_mongo_repository_does_not_truth_test_database() -> None:
     repo = MongoComparisonRepository(db)
 
     assert repo.db is db
+
+
+def test_mongo_transcript_source_type_supports_legacy_validators() -> None:
+    assert mongo_transcript_source_type(TranscriptSource.MANUAL_CAPTIONS) == "manual_caption"
+    assert mongo_transcript_source_type(TranscriptSource.AUTO_CAPTIONS) == "auto_caption"
+    assert mongo_transcript_source_type(TranscriptSource.YT_DLP_CAPTIONS) == "auto_caption"
+    assert mongo_transcript_source_type(TranscriptSource.WHISPER) == "whisper"
