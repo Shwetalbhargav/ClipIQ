@@ -6,6 +6,7 @@ export const ROUTES = {
   create: '/',
   history: '/history',
   comparison: (comparisonId) => `/comparisons/${comparisonId}`,
+  analysis: (comparisonId) => `/comparisons/${comparisonId}/analyzing`,
 }
 
 export const VIDEO_LABELS = {
