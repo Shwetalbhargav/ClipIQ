@@ -3,7 +3,7 @@ import Button from '../ui/Button.jsx'
 
 function ChatInput({ disabled, isStreaming, onChange, onSubmit, value }) {
   return (
-    <form className="flex gap-2 border-t border-outline-variant p-3" onSubmit={onSubmit}>
+    <form className="sticky bottom-0 flex gap-2 border-t border-outline-variant bg-surface-container-low p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]" onSubmit={onSubmit}>
       <label className="sr-only" htmlFor="chat-message">
         Ask about this comparison
       </label>

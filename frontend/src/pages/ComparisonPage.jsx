@@ -133,7 +133,7 @@ function ComparisonPage() {
             />
           </div>
         </div>
-        <ChatPanel comparisonId={comparison.id} disabled={chatDisabled} />
+        <ChatPanel key={comparison.id} comparisonId={comparison.id} disabled={chatDisabled} />
       </div>
     </div>
   )

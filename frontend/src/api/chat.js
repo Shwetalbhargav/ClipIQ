@@ -3,13 +3,15 @@ import { apiUrl, requestJson } from './client.js'
 export function normalizeCitation(citation) {
   return {
     id: citation?.citation_id || `${citation?.video_id || 'source'}-${citation?.chunk_index ?? 'unknown'}`,
-    label: citation?.label || 'Citation',
+    label: citation?.label || citation?.citation_id || null,
     videoId: citation?.video_id || null,
     chunkIndex: citation?.chunk_index ?? null,
     platform: citation?.platform || null,
+    sourceUrl: citation?.source_url || null,
     startSeconds: citation?.start_seconds ?? null,
     endSeconds: citation?.end_seconds ?? null,
     text: citation?.text || null,
+    score: typeof citation?.score === 'number' ? citation.score : null,
   }
 }
 
@@ -37,7 +39,44 @@ export async function sendFallbackChat({ comparisonId, message }) {
   return normalizeChatResponse(payload)
 }
 
-export async function streamChat({ comparisonId, message, onEvent, signal }) {
+export async function fallbackChat(comparisonId, message) {
+  return sendFallbackChat({ comparisonId, message })
+}
+
+function parseSseEvent(rawEvent) {
+  const lines = rawEvent.split('\n')
+  const data = lines
+    .filter((line) => line.startsWith('data:'))
+    .map((line) => line.replace(/^data:\s?/, ''))
+    .join('\n')
+
+  if (!data || data === '[DONE]') return null
+
+  try {
+    return JSON.parse(data)
+  } catch {
+    return { type: 'error', error: { message: 'Invalid stream event received.' } }
+  }
+}
+
+function dispatchStreamEvent(eventPayload, handlers) {
+  if (!eventPayload) return
+
+  handlers.onEvent?.(eventPayload)
+  if (eventPayload.type === 'metadata') handlers.onMetadata?.(eventPayload)
+  if (eventPayload.type === 'delta') handlers.onDelta?.(eventPayload.text || '')
+  if (eventPayload.type === 'citation') handlers.onCitation?.(normalizeCitation(eventPayload))
+  if (eventPayload.type === 'done') handlers.onDone?.(eventPayload)
+  if (eventPayload.type === 'error') handlers.onError?.(eventPayload.error || { message: 'The stream failed.' })
+}
+
+export async function streamChat(comparisonIdOrOptions, messageArg, handlersArg = {}) {
+  const options =
+    typeof comparisonIdOrOptions === 'object'
+      ? comparisonIdOrOptions
+      : { comparisonId: comparisonIdOrOptions, message: messageArg, ...handlersArg }
+  const { comparisonId, message, signal, ...handlers } = options
+
   const response = await fetch(apiUrl(`/comparisons/${encodeURIComponent(comparisonId)}/chat/stream`), {
     method: 'POST',
     headers: {
@@ -65,18 +104,11 @@ export async function streamChat({ comparisonId, message, onEvent, signal }) {
     buffer = events.pop() || ''
 
     for (const rawEvent of events) {
-      const dataLine = rawEvent
-        .split('\n')
-        .find((line) => line.startsWith('data:'))
-
-      if (!dataLine) continue
-
-      const rawData = dataLine.replace(/^data:\s?/, '')
-      try {
-        onEvent(JSON.parse(rawData))
-      } catch {
-        onEvent({ type: 'error', error: { message: 'Invalid stream event received.' } })
-      }
+      dispatchStreamEvent(parseSseEvent(rawEvent), handlers)
     }
+  }
+
+  if (buffer.trim()) {
+    dispatchStreamEvent(parseSseEvent(buffer), handlers)
   }
 }
