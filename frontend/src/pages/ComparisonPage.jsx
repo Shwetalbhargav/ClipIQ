@@ -98,7 +98,7 @@ function ComparisonPage() {
       </div>
 
       {comparison.errors.length > 0 && (
-        <ErrorAlert className="mb-6" title="Comparison processing issues">
+        <ErrorAlert className="mb-6" title="Backend reported issues">
           <ul className="space-y-1">
             {comparison.errors.map((error, index) => (
               <li key={`${error.code || 'error'}-${index}`}>{error.message || error.code || 'Processing issue unavailable.'}</li>

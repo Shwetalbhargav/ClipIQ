@@ -22,10 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-.env
-.env.*.local
-*.pem
-*.key
-*.crt
-*.pfx
