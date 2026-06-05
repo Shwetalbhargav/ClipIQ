@@ -6,11 +6,15 @@ import UnavailableValue from '../ui/UnavailableValue.jsx'
 import MetricRow from './MetricRow.jsx'
 import VideoCardBase from './VideoCardBase.jsx'
 
-function VideoCard({ video }) {
+function statusValue(statusMap, label) {
+  return statusMap?.[label] || statusMap?.[String(label).toUpperCase()] || null
+}
+
+function VideoCard({ fallbackLabel = 'Video', fallbackPlatform = 'Source', indexingStatus = {}, isWinner = false, transcriptStatus = {}, video }) {
   if (!video) {
     return (
       <Card className="p-4">
-        <p className="text-sm font-semibold text-on-surface">Video data unavailable</p>
+        <p className="text-sm font-semibold text-on-surface">{fallbackLabel} ({fallbackPlatform})</p>
         <p className="mt-2 text-sm text-on-surface-variant">The backend did not return this side of the comparison.</p>
       </Card>
     )
@@ -31,6 +35,7 @@ function VideoCard({ video }) {
       status={video.transcriptStatus}
       thumbnailUrl={video.thumbnailUrl}
       thumbnailAlt={`Thumbnail for Video ${video.label}`}
+      className={isWinner ? 'ring-2 ring-primary/60' : ''}
     >
       <div>
         <UnavailableValue as="p" value={title} className="line-clamp-2 text-sm font-semibold text-on-surface" />
@@ -45,6 +50,8 @@ function VideoCard({ video }) {
         <MetricRow label="Engagement" value={formatPercent(resolveEngagementRate(video))} />
         <MetricRow label="Duration" value={formatSeconds(video.durationSeconds)} />
         <MetricRow label="Uploaded" value={formatDate(video.uploadDate)} />
+        <MetricRow label="Transcript" value={video.transcriptStatus || statusValue(transcriptStatus, video.label)} />
+        <MetricRow label="Index" value={statusValue(indexingStatus, video.label)} />
         <MetricRow label="Chunks" value={typeof video.chunkCount === 'number' ? `${video.indexedChunkCount ?? 0}/${video.chunkCount}` : null} />
       </dl>
     </VideoCardBase>
