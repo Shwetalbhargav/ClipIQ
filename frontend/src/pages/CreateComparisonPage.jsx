@@ -83,7 +83,13 @@ function CreateComparisonPage() {
     try {
       const comparison = await createComparison({ youtubeUrl, instagramUrl })
       addItem(comparison)
-      navigate(ROUTES.comparison(comparison.id))
+      sessionStorage.setItem(`clipiq.analysis.${comparison.id}`, JSON.stringify({ youtubeUrl, instagramUrl }))
+      navigate(ROUTES.analysis(comparison.id), {
+        state: {
+          initialComparison: comparison,
+          submittedUrls: { youtubeUrl, instagramUrl },
+        },
+      })
     } catch (error) {
       setSubmitError(error.message)
     } finally {
