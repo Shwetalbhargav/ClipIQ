@@ -8,7 +8,7 @@ function UnavailableValue({ as: Element = 'span', children, className = '', valu
   const displayValue = children ?? value
 
   if (isUnavailable(displayValue)) {
-    return <Element className={`text-on-surface-variant italic ${className}`}>{UNAVAILABLE_LABEL}</Element>
+    return <Element className={`${className} font-semibold text-error italic`}>{UNAVAILABLE_LABEL}</Element>
   }
 
   return <Element className={className}>{displayValue}</Element>

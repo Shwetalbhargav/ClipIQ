@@ -10,12 +10,17 @@ function statusValue(statusMap, label) {
   return statusMap?.[label] || statusMap?.[String(label).toUpperCase()] || null
 }
 
-function VideoCard({ fallbackLabel = 'Video', fallbackPlatform = 'Source', indexingStatus = {}, isWinner = false, transcriptStatus = {}, video }) {
+function VideoCard({ fallbackLabel = 'Video', fallbackPlatform = 'Source', indexingStatus = {}, isWinner = false, reason, transcriptStatus = {}, video }) {
   if (!video) {
     return (
-      <Card className="p-4">
+      <Card className="border-error/40 bg-error/5 p-4">
         <p className="text-sm font-semibold text-on-surface">{fallbackLabel} ({fallbackPlatform})</p>
         <p className="mt-2 text-sm text-on-surface-variant">The backend did not return this side of the comparison.</p>
+        {reason && (
+          <p className="mt-3 rounded-lg border border-error/30 bg-error/10 p-3 text-sm font-semibold text-error">
+            {reason}
+          </p>
+        )}
       </Card>
     )
   }
@@ -37,6 +42,12 @@ function VideoCard({ fallbackLabel = 'Video', fallbackPlatform = 'Source', index
       thumbnailAlt={`Thumbnail for Video ${video.label}`}
       className={isWinner ? 'ring-2 ring-primary/60' : ''}
     >
+      {(video.unavailableReason || video.extractionError?.message) && (
+        <p className="rounded-lg border border-error/30 bg-error/10 p-3 text-sm font-semibold text-error">
+          {video.unavailableReason || video.extractionError.message}
+        </p>
+      )}
+
       <div>
         <UnavailableValue as="p" value={title} className="line-clamp-2 text-sm font-semibold text-on-surface" />
         <UnavailableValue as="p" value={video.canonicalUrl || video.sourceUrl} className="mt-1 truncate text-xs text-on-surface-variant" />

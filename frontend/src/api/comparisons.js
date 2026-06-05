@@ -24,7 +24,12 @@ function normalizeVideo(video, fallbackLabel, fallbackPlatform) {
     transcriptStatus: video.transcript_status || 'unavailable',
     chunkCount: video.chunk_count ?? null,
     indexedChunkCount: video.indexed_chunk_count ?? null,
+    unavailableReason: video.unavailable_reason || video.error_message || null,
   }
+}
+
+function findVideoError(errors, platform) {
+  return errors.find((error) => error?.platform === platform) || null
 }
 
 export function normalizeComparison(payload) {
@@ -32,15 +37,19 @@ export function normalizeComparison(payload) {
     throw new Error('Invalid comparison payload.')
   }
 
+  const errors = Array.isArray(payload.errors) ? payload.errors : []
+  const videoA = normalizeVideo(payload.video_a, 'A', 'youtube')
+  const videoB = normalizeVideo(payload.video_b, 'B', 'instagram')
+
   return {
     id: payload.comparison_id,
     status: payload.status || 'failed',
-    videoA: normalizeVideo(payload.video_a, 'A', 'youtube'),
-    videoB: normalizeVideo(payload.video_b, 'B', 'instagram'),
+    videoA: videoA ? { ...videoA, extractionError: findVideoError(errors, 'youtube') } : null,
+    videoB: videoB ? { ...videoB, extractionError: findVideoError(errors, 'instagram') } : null,
     transcriptStatus: payload.transcript_status || {},
     indexingStatus: payload.indexing_status || {},
     engagement: payload.engagement || {},
-    errors: Array.isArray(payload.errors) ? payload.errors : [],
+    errors,
     createdAt: payload.created_at || null,
     updatedAt: payload.updated_at || null,
   }

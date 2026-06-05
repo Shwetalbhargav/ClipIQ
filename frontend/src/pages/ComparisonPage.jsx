@@ -20,6 +20,10 @@ function statusTone(status) {
   return 'neutral'
 }
 
+function errorForPlatform(errors, platform) {
+  return errors.find((error) => error?.platform === platform)?.message || null
+}
+
 function ComparisonPage() {
   const { comparisonId } = useParams()
   const [state, setState] = useState({ status: 'loading', comparison: null, error: null })
@@ -119,6 +123,7 @@ function ComparisonPage() {
               video={comparison.videoA}
               fallbackLabel="Video A"
               fallbackPlatform="YouTube"
+              reason={errorForPlatform(comparison.errors, 'youtube')}
               transcriptStatus={comparison.transcriptStatus}
               indexingStatus={comparison.indexingStatus}
               isWinner={winnerLabel === 'A'}
@@ -127,6 +132,7 @@ function ComparisonPage() {
               video={comparison.videoB}
               fallbackLabel="Video B"
               fallbackPlatform="Instagram Reel"
+              reason={errorForPlatform(comparison.errors, 'instagram')}
               transcriptStatus={comparison.transcriptStatus}
               indexingStatus={comparison.indexingStatus}
               isWinner={winnerLabel === 'B'}
