@@ -1,5 +1,5 @@
 import { BarChart3, BookOpen, Clapperboard, FileText, MessageSquare, PlaySquare, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createComparison } from '../api/comparisons.js'
 import UrlInput from '../components/forms/UrlInput.jsx'
@@ -12,7 +12,7 @@ import StatusBadge from '../components/ui/StatusBadge.jsx'
 import { ROUTES } from '../constants/app.js'
 import { useHealth } from '../hooks/useHealth.js'
 import { useLocalHistory } from '../hooks/useLocalHistory.js'
-import { validateComparisonUrls } from '../utils/validators.js'
+import { getFirstComparisonUrlErrorField, validateComparisonUrls } from '../utils/validators.js'
 
 const featureTiles = [
   {
@@ -54,18 +54,30 @@ function CreateComparisonPage() {
   const navigate = useNavigate()
   const health = useHealth()
   const { addItem } = useLocalHistory()
+  const youtubeInputRef = useRef(null)
+  const instagramInputRef = useRef(null)
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [instagramUrl, setInstagramUrl] = useState('')
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [hasSubmitAttempt, setHasSubmitAttempt] = useState(false)
+  const currentErrors = useMemo(() => validateComparisonUrls({ youtubeUrl, instagramUrl }), [youtubeUrl, instagramUrl])
+  const visibleErrors = hasSubmitAttempt ? currentErrors : errors
+  const isSubmitBlocked = hasSubmitAttempt && Object.keys(currentErrors).length > 0
 
   async function handleSubmit(event) {
     event.preventDefault()
+    setHasSubmitAttempt(true)
     const nextErrors = validateComparisonUrls({ youtubeUrl, instagramUrl })
     setErrors(nextErrors)
     setSubmitError(null)
-    if (Object.keys(nextErrors).length > 0) return
+    if (Object.keys(nextErrors).length > 0) {
+      const firstInvalidField = getFirstComparisonUrlErrorField(nextErrors)
+      if (firstInvalidField === 'youtube-url') youtubeInputRef.current?.focus()
+      if (firstInvalidField === 'instagram-url') instagramInputRef.current?.focus()
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -108,37 +120,51 @@ function CreateComparisonPage() {
               <form className="space-y-5" onSubmit={handleSubmit}>
                 <UrlInput
                   id="youtube-url"
+                  ref={youtubeInputRef}
                   label="Video A - YouTube video URL"
                   required
                   icon={PlaySquare}
                   value={youtubeUrl}
-                  onChange={(event) => setYoutubeUrl(event.target.value)}
+                  onChange={(event) => {
+                    setYoutubeUrl(event.target.value)
+                    setSubmitError(null)
+                  }}
                   placeholder="https://www.youtube.com/watch?v=..."
-                  error={errors.youtubeUrl}
+                  error={visibleErrors.youtubeUrl}
                 />
 
                 <UrlInput
                   id="instagram-url"
+                  ref={instagramInputRef}
                   label="Video B - Instagram Reel URL"
                   required
                   icon={Clapperboard}
                   tone="secondary"
                   value={instagramUrl}
-                  onChange={(event) => setInstagramUrl(event.target.value)}
+                  onChange={(event) => {
+                    setInstagramUrl(event.target.value)
+                    setSubmitError(null)
+                  }}
                   placeholder="https://www.instagram.com/reel/..."
-                  error={errors.instagramUrl}
+                  error={visibleErrors.instagramUrl}
                 />
 
                 {submitError && <ErrorAlert>{submitError}</ErrorAlert>}
 
-                <Button type="submit" variant="primary" size="lg" className="w-full" isLoading={isSubmitting}>
+                {isSubmitBlocked && (
+                  <ErrorAlert title="Fix validation errors">
+                    Submit is disabled until Video A is a YouTube watch URL and Video B is an Instagram Reel URL.
+                  </ErrorAlert>
+                )}
+
+                <Button type="submit" variant="primary" size="lg" className="w-full" isLoading={isSubmitting} disabled={isSubmitBlocked}>
                   {isSubmitting ? 'Creating comparison' : 'Analyze'}
                 </Button>
-              <p className={`flex gap-2 text-xs leading-5 ${health.status === 'online' || health.status === 'loading' ? 'text-on-surface-variant' : 'text-error'}`}>
-                <Sparkles className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                {submitHelperText(health.status)}
-              </p>
-            </form>
+                <p className={`flex gap-2 text-xs leading-5 ${health.status === 'online' || health.status === 'loading' ? 'text-on-surface-variant' : 'text-error'}`}>
+                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  {submitHelperText(health.status)}
+                </p>
+              </form>
             </CardBody>
           </Card>
 

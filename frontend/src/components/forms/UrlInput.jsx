@@ -1,4 +1,6 @@
-function UrlInput({
+import { forwardRef } from 'react'
+
+const UrlInput = forwardRef(function UrlInput({
   disabled = false,
   error,
   icon: Icon,
@@ -9,10 +11,10 @@ function UrlInput({
   required = false,
   tone = 'primary',
   value,
-}) {
-  const errorId = error ? `${id}-error` : undefined
+}, ref) {
+  const errorId = `${id}-error`
   const focusTone = tone === 'secondary' ? 'focus-within:ring-secondary/70' : 'focus-within:ring-primary/70'
-  const iconTone = tone === 'secondary' ? 'text-secondary' : 'text-primary'
+  const iconTone = error ? 'text-error' : tone === 'secondary' ? 'text-secondary' : 'text-primary'
 
   return (
     <label className="block" htmlFor={id}>
@@ -24,6 +26,7 @@ function UrlInput({
         {Icon && <Icon className={`h-5 w-5 shrink-0 ${iconTone}`} aria-hidden="true" />}
         <input
           id={id}
+          ref={ref}
           type="url"
           value={value}
           onChange={onChange}
@@ -34,9 +37,11 @@ function UrlInput({
           aria-invalid={Boolean(error)}
         />
       </span>
-      {error && <span id={errorId} className="mt-2 block text-sm text-error">{error}</span>}
+      <span id={errorId} aria-live="polite" className={`mt-2 block min-h-5 text-sm font-semibold ${error ? 'text-error' : 'text-transparent'}`}>
+        {error || ''}
+      </span>
     </label>
   )
-}
+})
 
 export default UrlInput
