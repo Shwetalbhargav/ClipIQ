@@ -50,9 +50,18 @@ class VideoIngestionException(Exception):
     code = "VIDEO_INGESTION_FAILED"
     retryable = False
 
-    def __init__(self, message: str, *, platform: SupportedPlatform | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        platform: SupportedPlatform | None = None,
+        code: str | None = None,
+        retryable: bool | None = None,
+    ) -> None:
         super().__init__(message)
         self.platform = platform
+        self.code = code or self.code
+        self.retryable = self.retryable if retryable is None else retryable
 
 
 class VideoExtractionException(VideoIngestionException):
@@ -60,6 +69,13 @@ class VideoExtractionException(VideoIngestionException):
 
     code = "VIDEO_EXTRACTION_FAILED"
     retryable = True
+
+
+class PlatformAuthenticationRequiredException(VideoExtractionException):
+    """Raised when a provider blocks public extraction and needs cookies/login."""
+
+    code = "PLATFORM_AUTHENTICATION_REQUIRED"
+    retryable = False
 
 
 class VideoValidationException(VideoIngestionException):
@@ -91,6 +107,8 @@ class YtDlpOptions:
     """Runtime options for the yt-dlp-backed extractor adapters."""
 
     timeout_seconds: int = 45
+    cookies_file: str | None = None
+    youtube_cookies_file: str | None = None
     instagram_cookies_file: str | None = None
 
 
@@ -139,17 +157,15 @@ class YtDlpVideoExtractor(BaseVideoExtractor):
             # reduces surprise cost/latency from malformed user URLs.
             "noplaylist": True,
         }
-        if self.platform == SupportedPlatform.INSTAGRAM and self.options.instagram_cookies_file:
-            ydl_opts["cookiefile"] = self.options.instagram_cookies_file
+        cookies_file = self._cookies_file()
+        if cookies_file:
+            ydl_opts["cookiefile"] = cookies_file
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:  # type: ignore[attr-defined]
                 result = ydl.extract_info(url, download=False)
         except Exception as exc:  # pragma: no cover - network/provider behavior.
-            raise VideoExtractionException(
-                f"Could not extract metadata from {self.platform.value}: {exc}",
-                platform=self.platform,
-            ) from exc
+            raise self._to_extraction_exception(exc) from exc
 
         if not isinstance(result, dict):
             raise VideoExtractionException(
@@ -157,6 +173,40 @@ class YtDlpVideoExtractor(BaseVideoExtractor):
                 platform=self.platform,
             )
         return result
+
+    def _cookies_file(self) -> str | None:
+        """Return platform-specific cookies first, then a shared fallback."""
+
+        if self.platform == SupportedPlatform.YOUTUBE and self.options.youtube_cookies_file:
+            return self.options.youtube_cookies_file
+        if self.platform == SupportedPlatform.INSTAGRAM and self.options.instagram_cookies_file:
+            return self.options.instagram_cookies_file
+        return self.options.cookies_file
+
+    def _to_extraction_exception(self, exc: Exception) -> VideoExtractionException:
+        message = str(exc)
+        lowered = message.lower()
+        auth_markers = (
+            "sign in to confirm",
+            "not a bot",
+            "login required",
+            "rate-limit reached",
+            "requested content is not available",
+            "use --cookies",
+            "use --cookies-from-browser",
+        )
+        if any(marker in lowered for marker in auth_markers):
+            return PlatformAuthenticationRequiredException(
+                (
+                    f"{self.platform.value.title()} blocked public metadata extraction. "
+                    "Configure a yt-dlp cookies file on the backend and retry."
+                ),
+                platform=self.platform,
+            )
+        return VideoExtractionException(
+            f"Could not extract metadata from {self.platform.value}.",
+            platform=self.platform,
+        )
 
     def _map_yt_dlp_payload(self, url: str, raw: dict[str, Any]) -> ExtractedVideoPayload:
         """Map heterogeneous yt-dlp keys into the internal extraction payload."""
@@ -204,9 +254,22 @@ class VideoIngestionService:
     """Application service that orchestrates video metadata extraction."""
 
     def __init__(self, extractors: dict[SupportedPlatform, BaseVideoExtractor] | None = None) -> None:
-        self.extractors = extractors or {
-            SupportedPlatform.YOUTUBE: YtDlpVideoExtractor(SupportedPlatform.YOUTUBE),
-            SupportedPlatform.INSTAGRAM: YtDlpVideoExtractor(SupportedPlatform.INSTAGRAM),
+        self.extractors = extractors or self._default_extractors()
+
+    @staticmethod
+    def _default_extractors() -> dict[SupportedPlatform, BaseVideoExtractor]:
+        from app.core.config import get_settings
+
+        settings = get_settings()
+        options = YtDlpOptions(
+            timeout_seconds=settings.ytdlp_timeout_seconds,
+            cookies_file=settings.ytdlp_cookies_file,
+            youtube_cookies_file=settings.youtube_cookies_file,
+            instagram_cookies_file=settings.instagram_cookies_file,
+        )
+        return {
+            SupportedPlatform.YOUTUBE: YtDlpVideoExtractor(SupportedPlatform.YOUTUBE, options),
+            SupportedPlatform.INSTAGRAM: YtDlpVideoExtractor(SupportedPlatform.INSTAGRAM, options),
         }
 
     async def analyze_videos(self, urls: Sequence[str]) -> VideoAnalyzeResponse:

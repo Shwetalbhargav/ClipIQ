@@ -25,7 +25,13 @@ from app.modules.video_ingestion.schema import (
     TranscriptAvailability,
     VideoAnalyzeResponse,
 )
-from app.modules.video_ingestion.service import BaseVideoExtractor, VideoIngestionService
+from app.modules.video_ingestion.service import (
+    BaseVideoExtractor,
+    PlatformAuthenticationRequiredException,
+    VideoIngestionService,
+    YtDlpOptions,
+    YtDlpVideoExtractor,
+)
 from app.modules.video_ingestion.utils import (
     InvalidVideoUrlError,
     UnsupportedVideoUrlError,
@@ -164,6 +170,31 @@ def test_metadata_helpers_are_deterministic_and_safe() -> None:
     assert coerce_int(True) is None
     assert coerce_float("42.5") == 42.5
     assert coerce_float("not-a-number") is None
+
+
+def test_ytdlp_extractor_selects_platform_specific_cookies() -> None:
+    options = YtDlpOptions(
+        cookies_file="/shared/cookies.txt",
+        youtube_cookies_file="/youtube/cookies.txt",
+        instagram_cookies_file="/instagram/cookies.txt",
+    )
+
+    youtube = YtDlpVideoExtractor(SupportedPlatform.YOUTUBE, options)
+    instagram = YtDlpVideoExtractor(SupportedPlatform.INSTAGRAM, options)
+
+    assert youtube._cookies_file() == "/youtube/cookies.txt"
+    assert instagram._cookies_file() == "/instagram/cookies.txt"
+
+
+def test_ytdlp_extractor_maps_platform_auth_errors_to_clean_message() -> None:
+    extractor = YtDlpVideoExtractor(SupportedPlatform.YOUTUBE)
+
+    error = extractor._to_extraction_exception(RuntimeError("Sign in to confirm you’re not a bot. Use --cookies."))
+
+    assert isinstance(error, PlatformAuthenticationRequiredException)
+    assert error.code == "PLATFORM_AUTHENTICATION_REQUIRED"
+    assert error.retryable is False
+    assert "Configure a yt-dlp cookies file" in str(error)
 
 
 def test_metric_value_and_engagement_rate_preserve_unavailable_semantics() -> None:

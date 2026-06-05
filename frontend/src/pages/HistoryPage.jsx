@@ -1,5 +1,6 @@
 import { History } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import EmptyState from '../components/ui/EmptyState.jsx'
 import StatusBadge from '../components/ui/StatusBadge.jsx'
 import { ROUTES } from '../constants/app.js'
 import { useLocalHistory } from '../hooks/useLocalHistory.js'
@@ -16,11 +17,9 @@ function HistoryPage() {
       </div>
 
       {items.length === 0 ? (
-        <section className="rounded-xl border border-dashed border-outline-variant bg-surface-container p-8 text-center">
-          <History className="mx-auto h-7 w-7 text-on-surface-variant" aria-hidden="true" />
-          <h2 className="mt-3 text-lg font-semibold text-on-surface">No recent comparisons</h2>
-          <p className="mt-2 text-sm text-on-surface-variant">History is stored locally after successful comparison creation.</p>
-        </section>
+        <EmptyState icon={History} title="No recent comparisons">
+          History is stored locally after successful comparison creation.
+        </EmptyState>
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
@@ -33,7 +32,7 @@ function HistoryPage() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-on-surface">{item.id}</p>
                   <p className="mt-1 text-sm text-on-surface-variant">
-                    YouTube: {formatUnavailable(item.youtubeCreator)} · Instagram: {formatUnavailable(item.instagramCreator)}
+                    YouTube: {formatUnavailable(item.youtubeCreator)} - Instagram: {formatUnavailable(item.instagramCreator)}
                   </p>
                   <p className="mt-1 text-xs text-on-surface-variant">{formatDate(item.createdAt)}</p>
                 </div>

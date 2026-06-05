@@ -4,7 +4,7 @@ import { NavLink } from 'react-router-dom'
 import { APP_NAME, ROUTES } from '../../constants/app.js'
 import { useHealth } from '../../hooks/useHealth.js'
 import Logo from '../ui/Logo.jsx'
-import StatusBadge from '../ui/StatusBadge.jsx'
+import HealthBadge from '../ui/HealthBadge.jsx'
 
 const navItems = [
   { to: ROUTES.create, label: 'Create', icon: Home },
@@ -29,10 +29,6 @@ function AppShell({ children }) {
     localStorage.setItem('clipiq.theme', theme)
   }, [theme])
 
-  const healthLabel =
-    health.status === 'online' ? 'Backend Online' : health.status === 'loading' ? 'Checking Backend' : 'Backend Offline'
-  const healthTone = health.status === 'online' ? 'ready' : health.status === 'loading' ? 'neutral' : 'offline'
-
   return (
     <div className="min-h-screen bg-background text-on-surface">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[260px] border-r border-outline-variant bg-surface-container-low px-4 py-5 lg:block">
@@ -50,7 +46,7 @@ function AppShell({ children }) {
         </nav>
 
         <div className="absolute bottom-5 left-4 right-4 space-y-3">
-          <StatusBadge tone={healthTone} label={healthLabel} />
+          <HealthBadge status={health.status} />
           <button
             type="button"
             className="flex w-full items-center justify-between rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-sm font-semibold text-on-surface outline-none transition hover:bg-surface-container-high focus-visible:ring-2 focus-visible:ring-primary/70"
@@ -68,7 +64,7 @@ function AppShell({ children }) {
           <Logo compact />
         </NavLink>
         <div className="flex items-center gap-2">
-          <StatusBadge tone={healthTone} label={health.status === 'online' ? 'Online' : 'Offline'} />
+          <HealthBadge compact status={health.status} />
           <button
             type="button"
             className="flex h-10 w-10 items-center justify-center rounded-lg border border-outline-variant bg-surface-container outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
