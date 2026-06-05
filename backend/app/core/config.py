@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_embedding_model: str = "text-embedding-3-small"
     openai_chat_model: str = "gpt-4o-mini"
+    ytdlp_timeout_seconds: int = 45
+    ytdlp_cookies_file: str | None = None
+    youtube_cookies_file: str | None = None
+    instagram_cookies_file: str | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",
